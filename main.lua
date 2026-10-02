@@ -1,7 +1,7 @@
 --============================================================
--- ItsWalker AutoFarm v2.0
--- AutoFarm + Coin Aura + Auto Reset + Фикс лобби + Anti-AFK
--- + Auto Fling Killer + Перезапуск при респавне
+-- ItsWalker AutoFarm v3.0 (One Button)
+-- FARM (авто-старт) + Coin Aura + Auto Reset + Anti-AFK + Auto Fling
+-- Скорость сразу 22
 --============================================================
 
 if _G.ItsWalkerFarmRunning then
@@ -21,16 +21,18 @@ local UIS = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser")
 local LocalPlayer = Players.LocalPlayer
 
-local FARM_SPEED = 25
-local MIN_SPEED = 5
-local MAX_SPEED = 30
+--============================================================
+-- НАСТРОЙКИ (всё включено сразу)
+--============================================================
+
+local FARM_SPEED = 22
 local COIN_Y_OFFSET = -5.05
 local MAX_TARGET_DISTANCE = 500
 local COLLECT_DISTANCE = 6.5
 local LOOP_DELAY = 0.02
 local HRP_SIZE = Vector3.new(2, 12, 1)
 
-local COIN_AURA_ENABLED = false
+local COIN_AURA_ENABLED = true
 local COIN_AURA_RADIUS = 12
 
 local AUTO_RESET_ENABLED = true
@@ -41,9 +43,12 @@ local NO_COIN_PAUSE_TIME = 2
 
 local ANTI_AFK_ENABLED = true
 local AUTO_FLING_ENABLED = true
-local AUTO_RESTART_ON_RESPAWN = true
 
 local HAS_FIRETOUCH = (type(firetouchinterest) == "function")
+
+--============================================================
+-- СОСТОЯНИЕ
+--============================================================
 
 local Running = false
 local Character = nil
@@ -74,8 +79,11 @@ local LastCoinTime = os.clock()
 local Paused = false
 
 local AntiAfkConnection = nil
-local Minimized = false
 local RespawnGuard = false
+
+--============================================================
+-- FLING KILLER
+--============================================================
 
 local FLING_VELOCITY = Vector3.new(9e7, 9e8, 9e7)
 local FLING_ANGULAR = Vector3.new(9e8, 9e8, 9e8)
@@ -105,245 +113,49 @@ local function HookKillerFling(character)
 	end)
 end
 
-local oldGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("ItsWalkerAutoFarm")
+--============================================================
+-- GUI — ОДНА КНОПКА
+--============================================================
+
+local oldGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("ItsWalkerFarmGui")
 if oldGui then oldGui:Destroy() end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ItsWalkerAutoFarm"
+ScreenGui.Name = "ItsWalkerFarmGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.DisplayOrder = 100
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-local Panel = Instance.new("Frame")
-Panel.Name = "Panel"
-Panel.AnchorPoint = Vector2.new(0.5, 0.5)
-Panel.Position = UDim2.new(0.5, 0, 0.5, 0)
-Panel.Size = UDim2.fromOffset(260, 380)
-Panel.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-Panel.BackgroundTransparency = 0.05
-Panel.BorderSizePixel = 0
-Panel.Active = true
-Panel.Draggable = true
-Panel.Parent = ScreenGui
+local FarmBtn = Instance.new("TextButton")
+FarmBtn.Name = "FarmBtn"
+FarmBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+FarmBtn.Position = UDim2.new(0.15, 0, 0.5, 0)
+FarmBtn.Size = UDim2.fromOffset(130, 55)
+FarmBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+FarmBtn.BackgroundTransparency = 0.05
+FarmBtn.BorderSizePixel = 0
+FarmBtn.Text = "FARM: ON"
+FarmBtn.TextColor3 = Color3.fromRGB(80, 255, 120)
+FarmBtn.TextSize = 16
+FarmBtn.Font = Enum.Font.GothamBold
+FarmBtn.Active = true
+FarmBtn.Draggable = true
+FarmBtn.Parent = ScreenGui
 
-local panelCorner = Instance.new("UICorner")
-panelCorner.CornerRadius = UDim.new(0, 14)
-panelCorner.Parent = Panel
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 14)
+btnCorner.Parent = FarmBtn
 
-local panelStroke = Instance.new("UIStroke")
-panelStroke.Color = Color3.fromRGB(80, 220, 255)
-panelStroke.Thickness = 2
-panelStroke.Transparency = 0.1
-panelStroke.Parent = Panel
-
-local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.AnchorPoint = Vector2.new(1, 0)
-MinimizeBtn.Position = UDim2.new(1, -8, 0, 8)
-MinimizeBtn.Size = UDim2.fromOffset(28, 28)
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-MinimizeBtn.BorderSizePixel = 0
-MinimizeBtn.Text = "—"
-MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeBtn.TextSize = 18
-MinimizeBtn.Font = Enum.Font.GothamBold
-MinimizeBtn.Parent = Panel
-Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 8)
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -50, 0, 30)
-Title.Position = UDim2.fromOffset(10, 8)
-Title.BackgroundTransparency = 1
-Title.Text = "ItsWalker AutoFarm v2.0"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 14
-Title.Font = Enum.Font.GothamBold
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = Panel
-
-local Status = Instance.new("TextLabel")
-Status.Size = UDim2.new(1, -20, 0, 24)
-Status.Position = UDim2.fromOffset(10, 42)
-Status.BackgroundTransparency = 1
-Status.Text = "Статус: Выключен"
-Status.TextColor3 = Color3.fromRGB(180, 180, 190)
-Status.TextSize = 12
-Status.Font = Enum.Font.Gotham
-Status.TextXAlignment = Enum.TextXAlignment.Left
-Status.Parent = Panel
-
-local ExecInfo = Instance.new("TextLabel")
-ExecInfo.Size = UDim2.new(1, -20, 0, 20)
-ExecInfo.Position = UDim2.fromOffset(10, 66)
-ExecInfo.BackgroundTransparency = 1
-ExecInfo.Text = HAS_FIRETOUCH and "firetouchinterest: ЕСТЬ" or "firetouchinterest: НЕТ"
-ExecInfo.TextColor3 = HAS_FIRETOUCH and Color3.fromRGB(80, 255, 120) or Color3.fromRGB(255, 180, 80)
-ExecInfo.TextSize = 11
-ExecInfo.Font = Enum.Font.Gotham
-ExecInfo.TextXAlignment = Enum.TextXAlignment.Left
-ExecInfo.Parent = Panel
-
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-ToggleBtn.Position = UDim2.new(0.5, 0, 0, 100)
-ToggleBtn.Size = UDim2.fromOffset(220, 40)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-ToggleBtn.BorderSizePixel = 0
-ToggleBtn.Text = "ВКЛЮЧИТЬ ФАРМ"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.TextSize = 14
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.Parent = Panel
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 12)
-local btnStroke = Instance.new("UIStroke", ToggleBtn)
-btnStroke.Color = Color3.fromRGB(255, 80, 80)
+local btnStroke = Instance.new("UIStroke")
+btnStroke.Color = Color3.fromRGB(80, 255, 120)
 btnStroke.Thickness = 2
 btnStroke.Transparency = 0.1
+btnStroke.Parent = FarmBtn
 
-local AuraBtn = Instance.new("TextButton")
-AuraBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-AuraBtn.Position = UDim2.new(0.5, 0, 0, 148)
-AuraBtn.Size = UDim2.fromOffset(220, 36)
-AuraBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-AuraBtn.BorderSizePixel = 0
-AuraBtn.Text = "COIN AURA: OFF"
-AuraBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-AuraBtn.TextSize = 13
-AuraBtn.Font = Enum.Font.GothamBold
-AuraBtn.Parent = Panel
-Instance.new("UICorner", AuraBtn).CornerRadius = UDim.new(0, 10)
-local auraStroke = Instance.new("UIStroke", AuraBtn)
-auraStroke.Color = Color3.fromRGB(255, 150, 50)
-auraStroke.Thickness = 2
-auraStroke.Transparency = 0.3
-
-local ResetBtn = Instance.new("TextButton")
-ResetBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-ResetBtn.Position = UDim2.new(0.5, 0, 0, 192)
-ResetBtn.Size = UDim2.fromOffset(220, 36)
-ResetBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-ResetBtn.BorderSizePixel = 0
-ResetBtn.Text = "AUTO RESET: ON"
-ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ResetBtn.TextSize = 13
-ResetBtn.Font = Enum.Font.GothamBold
-ResetBtn.Parent = Panel
-Instance.new("UICorner", ResetBtn).CornerRadius = UDim.new(0, 10)
-local resetStroke = Instance.new("UIStroke", ResetBtn)
-resetStroke.Color = Color3.fromRGB(80, 255, 120)
-resetStroke.Thickness = 2
-resetStroke.Transparency = 0.3
-
-local AfkBtn = Instance.new("TextButton")
-AfkBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-AfkBtn.Position = UDim2.new(0.5, 0, 0, 236)
-AfkBtn.Size = UDim2.fromOffset(220, 36)
-AfkBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-AfkBtn.BorderSizePixel = 0
-AfkBtn.Text = "ANTI-AFK: ON"
-AfkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-AfkBtn.TextSize = 13
-AfkBtn.Font = Enum.Font.GothamBold
-AfkBtn.Parent = Panel
-Instance.new("UICorner", AfkBtn).CornerRadius = UDim.new(0, 10)
-local afkStroke = Instance.new("UIStroke", AfkBtn)
-afkStroke.Color = Color3.fromRGB(80, 255, 120)
-afkStroke.Thickness = 2
-afkStroke.Transparency = 0.3
-
-local FlingBtn = Instance.new("TextButton")
-FlingBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-FlingBtn.Position = UDim2.new(0.5, 0, 0, 280)
-FlingBtn.Size = UDim2.fromOffset(220, 36)
-FlingBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-FlingBtn.BorderSizePixel = 0
-FlingBtn.Text = "AUTO FLING: ON"
-FlingBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-FlingBtn.TextSize = 13
-FlingBtn.Font = Enum.Font.GothamBold
-FlingBtn.Parent = Panel
-Instance.new("UICorner", FlingBtn).CornerRadius = UDim.new(0, 10)
-local flingStroke = Instance.new("UIStroke", FlingBtn)
-flingStroke.Color = Color3.fromRGB(255, 80, 80)
-flingStroke.Thickness = 2
-flingStroke.Transparency = 0.3
-
-local SpeedLabel = Instance.new("TextLabel")
-SpeedLabel.Size = UDim2.new(1, -20, 0, 18)
-SpeedLabel.Position = UDim2.fromOffset(10, 306)
-SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.Text = "Скорость фарма (5-30):"
-SpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
-SpeedLabel.TextSize = 12
-SpeedLabel.Font = Enum.Font.Gotham
-SpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
-SpeedLabel.Parent = Panel
-
-local SpeedInput = Instance.new("TextBox")
-SpeedInput.AnchorPoint = Vector2.new(0, 0.5)
-SpeedInput.Position = UDim2.new(0, 10, 0, 339)
-SpeedInput.Size = UDim2.new(1, -20, 0, 32)
-SpeedInput.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-SpeedInput.BorderSizePixel = 0
-SpeedInput.Text = tostring(FARM_SPEED)
-SpeedInput.PlaceholderText = "5-30"
-SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpeedInput.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
-SpeedInput.TextSize = 14
-SpeedInput.Font = Enum.Font.GothamBold
-SpeedInput.ClearTextOnFocus = false
-SpeedInput.Parent = Panel
-Instance.new("UICorner", SpeedInput).CornerRadius = UDim.new(0, 10)
-local inputStroke = Instance.new("UIStroke", SpeedInput)
-inputStroke.Color = Color3.fromRGB(80, 220, 255)
-inputStroke.Thickness = 1.5
-inputStroke.Transparency = 0.3
-
-local BagInfo = Instance.new("TextLabel")
-BagInfo.Size = UDim2.new(1, -20, 0, 18)
-BagInfo.Position = UDim2.fromOffset(10, 358)
-BagInfo.BackgroundTransparency = 1
-BagInfo.Text = "Сумка: 0/" .. BagMax
-BagInfo.TextColor3 = Color3.fromRGB(200, 200, 210)
-BagInfo.TextSize = 11
-BagInfo.Font = Enum.Font.Gotham
-BagInfo.TextXAlignment = Enum.TextXAlignment.Left
-BagInfo.Parent = Panel
-
-local MiniTab = Instance.new("TextButton")
-MiniTab.AnchorPoint = Vector2.new(0.5, 0.5)
-MiniTab.Position = Panel.Position
-MiniTab.Size = UDim2.fromOffset(120, 40)
-MiniTab.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-MiniTab.BackgroundTransparency = 0.05
-MiniTab.BorderSizePixel = 0
-MiniTab.Text = "ItsWalker ▲"
-MiniTab.TextColor3 = Color3.fromRGB(80, 220, 255)
-MiniTab.TextSize = 13
-MiniTab.Font = Enum.Font.GothamBold
-MiniTab.Visible = false
-MiniTab.Active = true
-MiniTab.Draggable = true
-MiniTab.Parent = ScreenGui
-Instance.new("UICorner", MiniTab).CornerRadius = UDim.new(0, 12)
-local miniStroke = Instance.new("UIStroke", MiniTab)
-miniStroke.Color = Color3.fromRGB(80, 220, 255)
-miniStroke.Thickness = 2
-miniStroke.Transparency = 0.2
-
-MinimizeBtn.MouseButton1Click:Connect(function()
-	Minimized = true
-	Panel.Visible = false
-	MiniTab.Position = Panel.Position
-	MiniTab.Visible = true
-end)
-
-MiniTab.MouseButton1Click:Connect(function()
-	Minimized = false
-	MiniTab.Visible = false
-	Panel.Position = MiniTab.Position
-	Panel.Visible = true
-end)
+--============================================================
+-- ANTI-AFK
+--============================================================
 
 local function StartAntiAfk()
 	if AntiAfkConnection then return end
@@ -362,6 +174,10 @@ local function StopAntiAfk()
 		AntiAfkConnection = nil
 	end
 end
+
+--============================================================
+-- ФУНКЦИИ
+--============================================================
 
 local function UpdateCharacter()
 	Character = LocalPlayer.Character
@@ -568,25 +384,26 @@ local function IsInLobby()
 	return HRP.Position.Y > LOBBY_Y_THRESHOLD
 end
 
-local function PauseFarm(reason)
+local function PauseFarm()
 	if Paused then return end
 	Paused = true
 	ReleaseTarget()
 	DestroyMovement()
 	RestoreHRPSize()
-	Status.Text = "Статус: Пауза (" .. (reason or "?") .. ")"
 end
 
 local function ResumeFarm()
 	if not Paused then return end
 	Paused = false
-	Status.Text = "Статус: Фарм работает"
 end
+
+--============================================================
+-- AUTO RESET
+--============================================================
 
 local function DoReset()
 	if Resetting then return end
 	Resetting = true
-	Status.Text = "Статус: Сумка полная! Ресет..."
 	local wasRunning = Running
 	Running = false
 	ReleaseTarget()
@@ -601,13 +418,16 @@ local function DoReset()
 	end
 	task.wait(2)
 	BagCount = 0
-	BagInfo.Text = "Сумка: 0/" .. BagMax
 	if wasRunning then
 		task.wait(0.5)
 		StartFarm()
 	end
 	Resetting = false
 end
+
+--============================================================
+-- COIN AURA
+--============================================================
 
 local function StartCoinAura()
 	if not HAS_FIRETOUCH then return end
@@ -636,6 +456,10 @@ local function StopCoinAura()
 	if CoinAuraConnection then CoinAuraConnection:Disconnect(); CoinAuraConnection = nil end
 end
 
+--============================================================
+-- ОТСЛЕЖИВАНИЕ СУМКИ
+--============================================================
+
 local function HookBagCounter()
 	local RS = game:GetService("ReplicatedStorage")
 	local remotes = RS:FindFirstChild("Remotes")
@@ -649,7 +473,6 @@ local function HookBagCounter()
 			if maximum and maximum > 0 then BagMax = maximum end
 			if current then
 				BagCount = current
-				BagInfo.Text = "Сумка: " .. BagCount .. "/" .. BagMax
 				if AUTO_RESET_ENABLED and BagCount >= BagMax and not Resetting then
 					DoReset()
 				end
@@ -658,15 +481,19 @@ local function HookBagCounter()
 	end
 end
 
+--============================================================
+-- ГЛАВНЫЙ ЦИКЛ
+--============================================================
+
 local function FarmLoop()
 	while Running do
 		if not UpdateCharacter() then task.wait(0.1); continue end
 		if Humanoid.Health <= 0 then task.wait(0.1); continue end
-		if IsInLobby() then PauseFarm("лобби"); task.wait(0.5); continue end
+		if IsInLobby() then PauseFarm(); task.wait(0.5); continue end
 		if not CurrentCoin then
 			local coin, dist = FindNearestCoin()
 			if not coin then
-				if os.clock() - LastCoinTime > NO_COIN_PAUSE_TIME then PauseFarm("нет монет") end
+				if os.clock() - LastCoinTime > NO_COIN_PAUSE_TIME then PauseFarm() end
 				task.wait(0.2)
 				continue
 			end
@@ -675,7 +502,6 @@ local function FarmLoop()
 			if Paused then ResumeFarm() end
 			if not EnsureMovement() then task.wait(0.05); continue end
 			SelectTarget(coin)
-			Status.Text = "Статус: Летим к монете"
 		end
 		if not CurrentCoin then continue end
 		if not CurrentCoin:IsDescendantOf(workspace) then ReleaseTarget(); continue end
@@ -685,7 +511,6 @@ local function FarmLoop()
 		if d > MAX_TARGET_DISTANCE then ReleaseTarget(); continue end
 		local coll = CheckCollection(CurrentCoin, coinPos)
 		if coll == true or coll == "invalid" then
-			Status.Text = "Статус: Монета собрана"
 			ReleaseTarget()
 			continue
 		end
@@ -698,7 +523,7 @@ local function FarmLoop()
 	end
 end
 
-local function StartFarm()
+function StartFarm()
 	if Running then return end
 	Running = true
 	Paused = false
@@ -708,10 +533,14 @@ local function StartFarm()
 	UpdateCharacter()
 	ApplyHRPSize()
 	StartNoclip()
+	if COIN_AURA_ENABLED and HAS_FIRETOUCH then StartCoinAura() end
 	task.spawn(FarmLoop)
+	FarmBtn.Text = "FARM: ON"
+	FarmBtn.TextColor3 = Color3.fromRGB(80, 255, 120)
+	btnStroke.Color = Color3.fromRGB(80, 255, 120)
 end
 
-local function StopFarm()
+function StopFarm()
 	Running = false
 	Paused = false
 	ReleaseTarget()
@@ -727,83 +556,26 @@ local function StopFarm()
 		end)
 	end
 	table.clear(SkippedCoins)
+	FarmBtn.Text = "FARM: OFF"
+	FarmBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+	btnStroke.Color = Color3.fromRGB(255, 80, 80)
 end
 
-SpeedInput.FocusLost:Connect(function()
-	local value = tonumber(SpeedInput.Text)
-	if not value then SpeedInput.Text = tostring(FARM_SPEED); return end
-	value = math.clamp(math.floor(value), MIN_SPEED, MAX_SPEED)
-	FARM_SPEED = value
-	SpeedInput.Text = tostring(FARM_SPEED)
-	if PositionAlign then PositionAlign.MaxVelocity = FARM_SPEED end
-end)
+--============================================================
+-- КНОПКА
+--============================================================
 
-ToggleBtn.MouseButton1Click:Connect(function()
+FarmBtn.MouseButton1Click:Connect(function()
 	if Running then
 		StopFarm()
-		ToggleBtn.Text = "ВКЛЮЧИТЬ ФАРМ"
-		btnStroke.Color = Color3.fromRGB(255, 80, 80)
-		Status.Text = "Статус: Выключен"
 	else
 		StartFarm()
-		ToggleBtn.Text = "ВЫКЛЮЧИТЬ ФАРМ"
-		btnStroke.Color = Color3.fromRGB(80, 255, 120)
-		Status.Text = "Статус: Включен"
 	end
 end)
 
-AuraBtn.MouseButton1Click:Connect(function()
-	if not HAS_FIRETOUCH then
-		AuraBtn.Text = "COIN AURA: НЕДОСТУПНА"
-		task.delay(2, function() AuraBtn.Text = "COIN AURA: OFF" end)
-		return
-	end
-	COIN_AURA_ENABLED = not COIN_AURA_ENABLED
-	if COIN_AURA_ENABLED then
-		AuraBtn.Text = "COIN AURA: ON"
-		auraStroke.Color = Color3.fromRGB(80, 255, 120)
-		StartCoinAura()
-	else
-		AuraBtn.Text = "COIN AURA: OFF"
-		auraStroke.Color = Color3.fromRGB(255, 150, 50)
-		StopCoinAura()
-	end
-end)
-
-ResetBtn.MouseButton1Click:Connect(function()
-	AUTO_RESET_ENABLED = not AUTO_RESET_ENABLED
-	if AUTO_RESET_ENABLED then
-		ResetBtn.Text = "AUTO RESET: ON"
-		resetStroke.Color = Color3.fromRGB(80, 255, 120)
-	else
-		ResetBtn.Text = "AUTO RESET: OFF"
-		resetStroke.Color = Color3.fromRGB(255, 150, 50)
-	end
-end)
-
-AfkBtn.MouseButton1Click:Connect(function()
-	ANTI_AFK_ENABLED = not ANTI_AFK_ENABLED
-	if ANTI_AFK_ENABLED then
-		AfkBtn.Text = "ANTI-AFK: ON"
-		afkStroke.Color = Color3.fromRGB(80, 255, 120)
-		StartAntiAfk()
-	else
-		AfkBtn.Text = "ANTI-AFK: OFF"
-		afkStroke.Color = Color3.fromRGB(255, 150, 50)
-		StopAntiAfk()
-	end
-end)
-
-FlingBtn.MouseButton1Click:Connect(function()
-	AUTO_FLING_ENABLED = not AUTO_FLING_ENABLED
-	if AUTO_FLING_ENABLED then
-		FlingBtn.Text = "AUTO FLING: ON"
-		flingStroke.Color = Color3.fromRGB(255, 80, 80)
-	else
-		FlingBtn.Text = "AUTO FLING: OFF"
-		flingStroke.Color = Color3.fromRGB(100, 100, 110)
-	end
-end)
+--============================================================
+-- ПЕРЕЗАПУСК ПРИ РЕСПАВНЕ
+--============================================================
 
 _G.ItsWalkerFarmCleanup = function()
 	pcall(function()
@@ -818,7 +590,6 @@ _G.ItsWalkerFarmCleanup = function()
 end
 
 LocalPlayer.CharacterAdded:Connect(function(newChar)
-	if not AUTO_RESTART_ON_RESPAWN then return end
 	if RespawnGuard then return end
 	RespawnGuard = true
 
@@ -838,7 +609,15 @@ if LocalPlayer.Character then
 	HookKillerFling(LocalPlayer.Character)
 end
 
+--============================================================
+-- АВТО-СТАРТ
+--============================================================
+
 HookBagCounter()
 if ANTI_AFK_ENABLED then StartAntiAfk() end
 
-print("[ItsWalker AutoFarm v2.0] Загружено!")
+-- Включаем фарм сразу при загрузке
+task.wait(1)
+StartFarm()
+
+print("[ItsWalker AutoFarm v3.0] Загружено! Фарм запущен автоматически.")
