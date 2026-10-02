@@ -25,7 +25,7 @@ local LocalPlayer = Players.LocalPlayer
 -- НАСТРОЙКИ (всё включено сразу)
 --============================================================
 
-local FARM_SPEED = 22
+local FARM_SPEED = 23
 local COIN_Y_OFFSET = -5.05
 local MAX_TARGET_DISTANCE = 500
 local COLLECT_DISTANCE = 6.5
