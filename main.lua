@@ -2,14 +2,6 @@
 -- ItsWalker AutoFarm v2.0
 -- AutoFarm + Coin Aura + Auto Reset + Фикс лобби + Anti-AFK
 -- + Auto Fling Killer + Перезапуск при респавне
---
--- ЗАГРУЗИ ЭТОТ ФАЙЛ НА GITHUB КАК main.lua
--- Затем в Arceus X запусти:
--- loadstring(game:HttpGet("https://raw.githubusercontent.com/ТВОЙ_НИК/ТВОЙ_РЕПО/main/main.lua"))()
---============================================================
-
---============================================================
--- ПРОВЕРКА НА ПОВТОРНЫЙ ЗАПУСК
 --============================================================
 
 if _G.ItsWalkerFarmRunning then
@@ -23,19 +15,11 @@ end
 
 _G.ItsWalkerFarmRunning = true
 
---============================================================
--- СЕРВИСЫ
---============================================================
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser")
 local LocalPlayer = Players.LocalPlayer
-
---============================================================
--- НАСТРОЙКИ
---============================================================
 
 local FARM_SPEED = 25
 local MIN_SPEED = 5
@@ -59,15 +43,7 @@ local ANTI_AFK_ENABLED = true
 local AUTO_FLING_ENABLED = true
 local AUTO_RESTART_ON_RESPAWN = true
 
---============================================================
--- ПРОВЕРКА ИСПОЛНИТЕЛЯ
---============================================================
-
 local HAS_FIRETOUCH = (type(firetouchinterest) == "function")
-
---============================================================
--- СОСТОЯНИЕ
---============================================================
 
 local Running = false
 local Character = nil
@@ -101,10 +77,6 @@ local AntiAfkConnection = nil
 local Minimized = false
 local RespawnGuard = false
 
---============================================================
--- FLING KILLER
---============================================================
-
 local FLING_VELOCITY = Vector3.new(9e7, 9e8, 9e7)
 local FLING_ANGULAR = Vector3.new(9e8, 9e8, 9e8)
 
@@ -132,10 +104,6 @@ local function HookKillerFling(character)
 		end
 	end)
 end
-
---============================================================
--- GUI
---============================================================
 
 local oldGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("ItsWalkerAutoFarm")
 if oldGui then oldGui:Destroy() end
@@ -377,10 +345,6 @@ MiniTab.MouseButton1Click:Connect(function()
 	Panel.Visible = true
 end)
 
---============================================================
--- ANTI-AFK
---============================================================
-
 local function StartAntiAfk()
 	if AntiAfkConnection then return end
 	AntiAfkConnection = LocalPlayer.Idled:Connect(function()
@@ -398,10 +362,6 @@ local function StopAntiAfk()
 		AntiAfkConnection = nil
 	end
 end
-
---============================================================
--- ФУНКЦИИ
---============================================================
 
 local function UpdateCharacter()
 	Character = LocalPlayer.Character
@@ -623,10 +583,6 @@ local function ResumeFarm()
 	Status.Text = "Статус: Фарм работает"
 end
 
---============================================================
--- AUTO RESET
---============================================================
-
 local function DoReset()
 	if Resetting then return end
 	Resetting = true
@@ -652,10 +608,6 @@ local function DoReset()
 	end
 	Resetting = false
 end
-
---============================================================
--- COIN AURA
---============================================================
 
 local function StartCoinAura()
 	if not HAS_FIRETOUCH then return end
@@ -684,10 +636,6 @@ local function StopCoinAura()
 	if CoinAuraConnection then CoinAuraConnection:Disconnect(); CoinAuraConnection = nil end
 end
 
---============================================================
--- ОТСЛЕЖИВАНИЕ СУМКИ
---============================================================
-
 local function HookBagCounter()
 	local RS = game:GetService("ReplicatedStorage")
 	local remotes = RS:FindFirstChild("Remotes")
@@ -709,10 +657,6 @@ local function HookBagCounter()
 		end)
 	end
 end
-
---============================================================
--- ГЛАВНЫЙ ЦИКЛ
---============================================================
 
 local function FarmLoop()
 	while Running do
@@ -785,10 +729,6 @@ local function StopFarm()
 	table.clear(SkippedCoins)
 end
 
---============================================================
--- ПОЛЕ ВВОДА
---============================================================
-
 SpeedInput.FocusLost:Connect(function()
 	local value = tonumber(SpeedInput.Text)
 	if not value then SpeedInput.Text = tostring(FARM_SPEED); return end
@@ -797,10 +737,6 @@ SpeedInput.FocusLost:Connect(function()
 	SpeedInput.Text = tostring(FARM_SPEED)
 	if PositionAlign then PositionAlign.MaxVelocity = FARM_SPEED end
 end)
-
---============================================================
--- КНОПКИ
---============================================================
 
 ToggleBtn.MouseButton1Click:Connect(function()
 	if Running then
@@ -869,10 +805,6 @@ FlingBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
---============================================================
--- ФИКС РЕСПАВНА — АВТО-ПЕРЕЗАПУСК
---============================================================
-
 _G.ItsWalkerFarmCleanup = function()
 	pcall(function()
 		Running = false
@@ -892,8 +824,7 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
 
 	task.wait(1.5)
 
-	-- Перезапускаем скрипт с того же URL, откуда он был загружен
-	local scriptUrl = "https://raw.githubusercontent.com/ТВОЙ_НИК/ТВОЙ_РЕПО/main/main.lua"
+	local scriptUrl = "https://raw.githubusercontent.com/nakashidzze-commits/Goodfoosoxks/refs/heads/main/main.lua"
 
 	pcall(function()
 		loadstring(game:HttpGet(scriptUrl))()
@@ -906,10 +837,6 @@ end)
 if LocalPlayer.Character then
 	HookKillerFling(LocalPlayer.Character)
 end
-
---============================================================
--- СТАРТ
---============================================================
 
 HookBagCounter()
 if ANTI_AFK_ENABLED then StartAntiAfk() end
